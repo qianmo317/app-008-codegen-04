@@ -1,4 +1,4 @@
-import type { MoveTask, Box } from './types';
+import type { MoveTask, Box, FurnitureItem, DamageRecord, NewDamageRecord } from './types';
 
 const DB_NAME = 'MovingBoxTracker';
 const DB_VERSION = 1;
@@ -83,4 +83,75 @@ export async function deleteBox(taskId: string, boxId: string): Promise<void> {
   if (!task) throw new Error('Task not found');
   task.boxes = task.boxes.filter((b) => b.id !== boxId);
   await saveTask(task);
+}
+
+// ---- 大件清点簿 ----
+
+function furnitureList(task: MoveTask): FurnitureItem[] {
+  if (!task.furniture) task.furniture = [];
+  return task.furniture;
+}
+
+export class DuplicateFurnitureError extends Error {
+  constructor(name: string) {
+    super(`「${name}」已经建过档了，同一件东西不能重复建档`);
+    this.name = 'DuplicateFurnitureError';
+  }
+}
+
+export async function listFurniture(taskId: string): Promise<FurnitureItem[]> {
+  const task = await getTask(taskId);
+  return task ? furnitureList(task) : [];
+}
+
+export async function addFurniture(taskId: string, item: FurnitureItem): Promise<void> {
+  const task = await getTask(taskId);
+  if (!task) throw new Error('Task not found');
+  const list = furnitureList(task);
+  // 同一件东西不许重复建档：同一本清点簿内名称唯一
+  if (list.some((f) => f.name.trim() === item.name.trim())) {
+    throw new DuplicateFurnitureError(item.name.trim());
+  }
+  list.push(item);
+  await saveTask(task);
+}
+
+export async function updateFurniture(taskId: string, item: FurnitureItem): Promise<void> {
+  const task = await getTask(taskId);
+  if (!task) throw new Error('Task not found');
+  const list = furnitureList(task);
+  const idx = list.findIndex((f) => f.id === item.id);
+  if (idx === -1) throw new Error('Furniture not found');
+  list[idx] = item;
+  await saveTask(task);
+}
+
+export async function deleteFurniture(taskId: string, itemId: string): Promise<void> {
+  const task = await getTask(taskId);
+  if (!task) throw new Error('Task not found');
+  furnitureList(task);
+  task.furniture = task.furniture!.filter((f) => f.id !== itemId);
+  await saveTask(task);
+}
+
+export async function addPreDamage(taskId: string, itemId: string, damage: DamageRecord): Promise<FurnitureItem> {
+  const task = await getTask(taskId);
+  if (!task) throw new Error('Task not found');
+  const item = furnitureList(task).find((f) => f.id === itemId);
+  if (!item) throw new Error('Furniture not found');
+  item.preDamages.push(damage);
+  item.updatedAt = Date.now();
+  await saveTask(task);
+  return item;
+}
+
+export async function addNewDamage(taskId: string, itemId: string, damage: NewDamageRecord): Promise<FurnitureItem> {
+  const task = await getTask(taskId);
+  if (!task) throw new Error('Task not found');
+  const item = furnitureList(task).find((f) => f.id === itemId);
+  if (!item) throw new Error('Furniture not found');
+  item.newDamages.push(damage);
+  item.updatedAt = Date.now();
+  await saveTask(task);
+  return item;
 }

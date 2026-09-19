@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import type { MoveTask, BoxStatus } from './types';
+import type { MoveTask, BoxStatus, ConditionGrade, FurnitureItem } from './types';
 
 export function uid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -124,4 +124,61 @@ export function roomProgress(task: MoveTask, room: string): { total: number; unp
     unpacked: boxes.filter((b) => b.status === 'unpacked').length,
     damaged: boxes.filter((b) => b.status === 'damaged').length,
   };
+}
+
+// ---- 大件清点簿 ----
+
+// 默认按 10 年折旧，残值率 5%，直线法折到残值为止
+export const FURNITURE_LIFE_YEARS = 10;
+export const FURNITURE_SALVAGE_RATE = 0.05;
+
+export function conditionLabel(grade: ConditionGrade): string {
+  const map: Record<ConditionGrade, string> = {
+    like_new: '九成新',
+    good: '良好',
+    fair: '一般',
+    poor: '较差',
+  };
+  return map[grade];
+}
+
+export function conditionColor(grade: ConditionGrade): string {
+  const map: Record<ConditionGrade, string> = {
+    like_new: '#22c55e',
+    good: '#3b82f6',
+    fair: '#f59e0b',
+    poor: '#ef4444',
+  };
+  return map[grade];
+}
+
+// 买回来多少年（按整年算，今年买的算 0 年）
+export function yearsOwned(purchaseYear: number, now = new Date()): number {
+  return Math.max(0, now.getFullYear() - purchaseYear);
+}
+
+// 直线折旧：每年折 (原价-残值)/寿命年数，不低于残值
+export function currentValue(
+  item: Pick<FurnitureItem, 'purchaseYear' | 'originalPrice'>,
+  now = new Date(),
+): number {
+  const salvage = item.originalPrice * FURNITURE_SALVAGE_RATE;
+  const annual = (item.originalPrice - salvage) / FURNITURE_LIFE_YEARS;
+  const value = item.originalPrice - annual * yearsOwned(item.purchaseYear, now);
+  return Math.max(salvage, Math.round(value));
+}
+
+export function formatYuan(n: number): string {
+  return `¥${n.toLocaleString('zh-CN')}`;
+}
+
+export function formatDateTime(ts: number): string {
+  const d = new Date(ts);
+  const p = (x: number) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// 成色差或带着旧伤，搬运前需要单独看一眼
+export function needsPreMoveAttention(item: FurnitureItem): boolean {
+  return item.condition === 'poor' || item.preDamages.length > 0;
 }
