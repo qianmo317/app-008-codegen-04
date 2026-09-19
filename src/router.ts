@@ -9,6 +9,11 @@ const routes = [
   { path: '/task/:id/labels', name: 'LabelsPrint', component: () => import('./views/LabelsPrint.vue') },
   { path: '/task/:id/scan', name: 'ScanCheck', component: () => import('./views/ScanCheck.vue') },
   { path: '/task/:id/check', name: 'DeliveryCheck', component: () => import('./views/DeliveryCheck.vue') },
+  { path: '/assets', name: 'AssetList', component: () => import('./views/AssetList.vue') },
+  { path: '/assets/new', name: 'AssetNew', component: () => import('./views/AssetForm.vue') },
+  { path: '/assets/review', name: 'AssetReview', component: () => import('./views/AssetReview.vue') },
+  { path: '/assets/:id', name: 'AssetDetail', component: () => import('./views/AssetDetail.vue') },
+  { path: '/assets/:id/edit', name: 'AssetEdit', component: () => import('./views/AssetForm.vue') },
 ];
 
 export default createRouter({
